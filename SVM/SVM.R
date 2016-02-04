@@ -76,3 +76,45 @@ plot(svmfit, dat)
 svmfit2 = svm(y~., data = dat, kernel = "linear", cost = 1)
 summary(svmfit2)
 plot(svmfit2, dat) #1 misclassification but have 7 support vectors -> will prob perform better on test dat.
+
+
+
+
+####SUPPORT VECTOR MACHINES
+#Now use different parameter to kernel argument: poly or radial
+set.seed(1)
+
+#Generate data with non linear boundary 
+x = matrix(rnorm(200*2), ncol = 2)
+x[1:100,] = x[1:100,] +2
+x[101:150,]=x[101:150,]-2
+y=c(rep(1,150),rep(2,50))
+dat=data.frame(x=x,y=as.factor(y))
+
+#lot the data to make sure boundaries non linear
+plot(x, col = y)
+
+#Split the data into training and testing group
+train = sample(200,100) #pick 100 random vars from 1-100 (unique)
+svmfit = svm(y~., data = dat[train,], kernel = "radial", gamma = 1, cost = 1)
+plot(svmfit, dat[train,])
+#Dayum.
+
+summary(svmfit)
+
+#Some errors.. increase cost to reduce number of errors. But subject to OVERFITTING.
+svmfit = svm(y~., data = dat[train,], kernel = "radial", gamma = 1, cost = 1e5)
+plot(svmfit, dat[train,]) #Mother of overfits. 
+summary(svmfit)
+
+
+#Let's perform cross val to select the best parameters (cost and gamma)
+set.seed (1)
+tune.out=tune(svm, y~., data=dat[train,], kernel="radial",ranges=list(cost=c(0.1,1,10,100,1000), gamma=c(0.5,1,2,3,4)))
+summary(tune.out)
+
+#Best params: cost = 1 and gamma = 2
+
+#See test data performance
+table(true = dat[-train,"y"], pred = predict(tune.out$best.model, newdata = dat[-train,]))
+#10% of test observations are misclassified by this model.
