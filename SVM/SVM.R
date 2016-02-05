@@ -118,3 +118,80 @@ summary(tune.out)
 #See test data performance
 table(true = dat[-train,"y"], pred = predict(tune.out$best.model, newdata = dat[-train,]))
 #10% of test observations are misclassified by this model.
+
+
+
+
+
+###ROC CURVES
+#Write function to  plot ROC curve given vector containing numerical score for each
+#obs pred + class label for every observation truth
+library(ROCR)
+rocplot = function(pred, truth, ...) {
+  predob = prediction(pred, truth)
+  perf = performance(predob, "tpr", "fpr")
+  plot(perf,...)
+}
+
+#If want to obain the fitted values for SVM -> decision.values = TRUE
+svmfit.opt <- svm(y~., data = dat[train,], kernel = "radial", gamma = 2, cost = 1, decision.values =T)
+fitted=attributes(predict(svmfit.opt,dat[train,],decision.values=TRUE))$decision.values
+
+par(mfrow=c(1,2))
+rocplot(fitted ,dat[train ,"y"],main="Training Data")
+
+#Increase gamma to improve accuracy
+svmfit.flex=svm(y~., data=dat[train,], kernel="radial", gamma=50, cost=1, decision.values=T)
+fitted=attributes(predict(svmfit.flex,dat[train,],decision.values=T))$decision.values
+rocplot(fitted ,dat[train ,"y"],add=T,col="red")
+
+#Check on test data
+fitted=attributes(predict(svmfit.opt,dat[-train,],decision.values=T))$decision.values
+rocplot(fitted,dat[-train,"y"],main="Test Data")
+fitted=attributes(predict(svmfit.flex,dat[-train,],decision.values=T))$decision.values
+rocplot(fitted,dat[-train,"y"],add=T,col="red")
+
+#model with gamma = 2 gives us better accuracy
+
+
+
+###What if we had multiple classes 
+#One vs one approach
+set.seed(1)
+x = rbind(x,matrix(rnorm(50*2), ncol = 2))
+x[y==0, 2] = x[y==0, 2] +2
+y = c(y, rep(0,50))
+dat = data.frame(x=x, y =as.factor(y))
+par(mfrow = c(1,1))
+plot(x,col=(y+1))
+
+
+#Fit svm 
+svmfit=svm(y~., data=dat, kernel="radial", cost=10, gamma=1) 
+plot(svmfit , dat)
+
+
+
+##########APPLICATION TO GENE EXP. DATA
+
+library(ISLR)
+names(Khan)
+dim(Khan$xtrain)
+dim(Khan$xtest)
+length(Khan$ytrain)
+length(Khan$ytest)
+
+
+#Use linear kernel, because additional flexibility that will result from using a poly / radial kernel unncessary + large nuumber of features relative to obs. 
+
+dat = data.frame(x = Khan$xtrain, y = as.factor(Khan$ytrain))
+out = svm(y~., data = dat, kernel = "linear", cost = 10)
+summary(out)
+
+table(out$fitted , dat$y)
+#No training errors. Not surprrising because large number of vars relative to observations. Easy to find hyerlanes that completely seperate classes.
+
+#Check perf on test data
+dat.te = data.frame(x=Khan$xtest, y = as.factor(Khan$ytest))
+pred.te = predict(out, newdata = dat.te)
+table(pred.te, dat.te$y) #Two test set erros. 
